@@ -19,6 +19,9 @@
 #include "ble/BLE.h"
 #include "SecurityManager.h"
 #include "LEDService.h"
+#include "Adafruit_GFX.h"
+#include "Adafruit_SSD1306.h"
+
 
 /** This example demonstrates all the basic setup required
  *  for pairing and setting up link security both as a central and peripheral
@@ -35,6 +38,8 @@ static const uint8_t DEVICE_NAME[] = "SM_device";
 static const uint16_t uuid16_list[] = {LEDService::LED_SERVICE_UUID};
 
 LEDService *ledServicePtr;
+SPI mySPI(p5, p6, p7); // mosi, miso, sclk
+Adafruit_SSD1306_Spi *display;
 
 /** Base class for both peripheral and central. The same class that provides
  *  the logic for the application also implements the SecurityManagerEventHandler
@@ -335,32 +340,28 @@ public:
         /* store the handle for future Security Manager requests */
         _handle = connection_event->handle;
 
-        printf("SMDevicePeripheral:on_connect:_handle:0x%X\r\n", _handle);
-        printf("SMDevicePeripheral:on_connect:_ble.securityManager:0x%X\r\n", &_ble.securityManager());
+        /* Request a change in link security. This will be done
+        * indirectly by asking the master of the connection to
+        * change it. Depending on circumstances different actions
+        * may be taken by the master which will trigger events
+        * which the applications should deal with. */
+        error = _ble.securityManager().setLinkSecurity(
+            _handle,
+            SecurityManager::SECURITY_MODE_ENCRYPTION_NO_MITM
+        );
 
-        // if (NULL != _handle) {
-
-            /* Request a change in link security. This will be done
-            * indirectly by asking the master of the connection to
-            * change it. Depending on circumstances different actions
-            * may be taken by the master which will trigger events
-            * which the applications should deal with. */
-            error = _ble.securityManager().setLinkSecurity(
-                _handle,
-                SecurityManager::SECURITY_MODE_ENCRYPTION_NO_MITM
-            );
-
-            if (error) {
-                printf("Error during SM::setLinkSecurity %d\r\n", error);
-                return;
-            }
-        // }
+        if (error) {
+            printf("Error during SM::setLinkSecurity %d\r\n", error);
+            return;
+        }
         printf("SMDevicePeripheral:on_connect: EXIT\r\n");
     };
 };
 
 int main()
 {
+    display = new Adafruit_SSD1306_Spi(mySPI, p0, p1, p2, 32, 128);
+
     printf("\r\n main: ENTER \r\n\r\n");
     BLE& ble = BLE::Instance();
     events::EventQueue queue;
